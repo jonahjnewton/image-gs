@@ -33,6 +33,11 @@ def rasterize_gaussians_sum(
     if colors.ndimension() != 2:
         raise ValueError("colors must have dimensions (N, D)")
 
+    if xys.device.type == "mps":
+        from . import mps
+        return mps.rasterize_gaussians_sum(xys, radii, conics, num_tiles_hit, colors, img_height, img_width,
+                                           BLOCK_H, BLOCK_W, topk_norm)
+
     return _RasterizeGaussiansSum.apply(
         xys.contiguous(),
         radii.contiguous(),

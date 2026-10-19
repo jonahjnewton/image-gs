@@ -3,7 +3,7 @@ import argparse
 import torch
 
 from model import GaussianSplatting2D
-from utils.misc_utils import load_cfg
+from utils.misc_utils import get_default_device, load_cfg
 
 
 def get_gaussian_cfg(args):
@@ -53,4 +53,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser = load_cfg(cfg_path="cfgs/default.yaml", parser=parser)
     arguments = parser.parse_args()
+    if arguments.device == "auto":
+        arguments.device = get_default_device()
     main(arguments)

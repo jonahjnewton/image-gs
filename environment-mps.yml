@@ -1,0 +1,22 @@
+name: image-gs-mps
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - torch>=2.6  # needs torch.mps.compile_shader
+      - torchvision
+      - flip-evaluator
+      - imageio
+      - jaxtyping
+      - lpips==0.1.4
+      - matplotlib
+      - numpy
+      - opencv-python
+      - pytorch-msssim==1.0.0
+      - pyyaml
+      - rich
+      - scikit-image
+      - scipy
+      - torchmetrics

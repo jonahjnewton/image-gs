@@ -60,6 +60,6 @@ class Decoder(nn.Module):
 
 def build_decoder(model_path, *args):
     decoder = Decoder(*args)
-    loaded = torch.load(model_path, weights_only=True)['state_dict']
+    loaded = torch.load(model_path, weights_only=True, map_location="cpu")['state_dict']
     decoder.load_state_dict(loaded)
     return decoder

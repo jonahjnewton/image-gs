@@ -27,6 +27,10 @@ def rasterize_gaussians_no_tiles(
     if colors.ndimension() != 2:
         raise ValueError("colors must have dimensions (N, D)")
 
+    if xys.device.type == "mps":
+        from . import mps
+        return mps.rasterize_gaussians_no_tiles(xys, conics, colors, img_height, img_width)
+
     return _RasterizeGaussiansNoTiles.apply(
         xys.contiguous(),
         conics.contiguous(),

@@ -3,6 +3,7 @@ import torch
 from skimage import filters
 from torchvision.transforms.functional import resize
 
+from utils.misc_utils import get_default_device
 from utils.saliency import decoder, resnet
 
 
@@ -15,10 +16,11 @@ def get_smap(image, path, filter_size=15):
     if image.shape[0] != 3:
         raise ValueError("Saliency prediction only supports RGB images")
     sod_res = (480, 640)
-    imagenet_model = resnet.resnet50(f"{path}/emlnet/res_imagenet.pth").cuda().eval()
-    places_model = resnet.resnet50(f"{path}/emlnet/res_places.pth").cuda().eval()
-    decoder_model = decoder.build_decoder(f"{path}/emlnet/res_decoder.pth", sod_res, 5, 5).cuda().eval()
-    image_sod = resize(image, sod_res).unsqueeze(0)
+    device = image.device if image.device.type != "cpu" else get_default_device()
+    imagenet_model = resnet.resnet50(f"{path}/emlnet/res_imagenet.pth").to(device).eval()
+    places_model = resnet.resnet50(f"{path}/emlnet/res_places.pth").to(device).eval()
+    decoder_model = decoder.build_decoder(f"{path}/emlnet/res_decoder.pth", sod_res, 5, 5).to(device).eval()
+    image_sod = resize(image, sod_res).unsqueeze(0).to(device)
     with torch.no_grad():
         imagenet_feat = imagenet_model(image_sod, decode=True)
         places_feat = places_model(image_sod, decode=True)

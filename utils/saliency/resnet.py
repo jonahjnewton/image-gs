@@ -155,7 +155,7 @@ def resnet50(model_path, **kwargs):
     if model_path is not None:
         model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
         model_state = model.state_dict()
-        loaded_model = torch.load(model_path, weights_only=True)
+        loaded_model = torch.load(model_path, weights_only=True, map_location="cpu")
         if "state_dict" in loaded_model:
             loaded_model = loaded_model['state_dict']
         pretrained = {k[7:]: v for k, v in loaded_model.items() if k[7:] in model_state}

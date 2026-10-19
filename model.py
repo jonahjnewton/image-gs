@@ -9,7 +9,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from fused_ssim import fused_ssim
+try:
+    from fused_ssim import fused_ssim
+except ImportError:  # e.g. no CUDA/Metal build available
+    from utils.ssim_utils import fused_ssim
 from lpips import LPIPS
 from pytorch_msssim import MS_SSIM
 from torchvision.transforms.functional import gaussian_blur

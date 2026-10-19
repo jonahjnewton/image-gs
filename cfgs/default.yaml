@@ -1,5 +1,5 @@
 seed:                  123
-device:                "cuda:0"
+device:                "auto" # "auto" picks cuda:0, then mps, then cpu
 # Evaluation
 eval:                  False # Render the optimized Image-GS representation
 render_height:         2048 # Image height for rendering (aspect ratio is maintained)

@@ -52,6 +52,10 @@
 import sys
 import numpy as np
 import torch
+
+from utils.misc_utils import get_default_device
+
+DEVICE = get_default_device()
 import torch.nn as nn
 
 
@@ -97,17 +101,17 @@ class HDRFLIPLoss(nn.Module):
 				stop_exposure = c_stop
 
 		# Compute number of exposures
-		num_exposures = torch.max(torch.tensor([2.0], requires_grad=False).cuda(), torch.ceil(stop_exposure - start_exposure))
+		num_exposures = torch.max(torch.tensor([2.0], requires_grad=False).to(DEVICE), torch.ceil(stop_exposure - start_exposure))
 		most_exposures = int(torch.amax(num_exposures, dim=0).item())
 
 		# Compute exposure step size
-		step_size = (stop_exposure - start_exposure) / torch.max(num_exposures - 1, torch.tensor([1.0], requires_grad=False).cuda())
+		step_size = (stop_exposure - start_exposure) / torch.max(num_exposures - 1, torch.tensor([1.0], requires_grad=False).to(DEVICE))
 
 		# Set the depth of the error tensor to the number of exposures given by the largest exposure range any reference image yielded.
 		# This allows us to do one loop for each image in our batch, while not affecting the HDR-FLIP error, as we fill up the error tensor with 0s.
 		# Note that the step size still depends on num_exposures and is therefore independent of most_exposures
 		dim = reference.size()
-		all_errors = torch.zeros(size=(dim[0], most_exposures, dim[2], dim[3])).cuda()
+		all_errors = torch.zeros(size=(dim[0], most_exposures, dim[2], dim[3])).to(DEVICE)
 
 		# Loop over exposures and compute LDR-FLIP for each pair of LDR reference and test
 		for i in range(0, most_exposures):
@@ -265,8 +269,8 @@ def tone_map(img, tone_mapper, exposure):
 		k5 = D * F * F
 
 		W = 11.2
-		nom = k0 * torch.pow(W, torch.tensor([2.0]).cuda()) + k1 * W + k2
-		denom = k3 * torch.pow(W, torch.tensor([2.0]).cuda()) + k4 * W + k5
+		nom = k0 * torch.pow(W, torch.tensor([2.0]).to(DEVICE)) + k1 * W + k2
+		denom = k3 * torch.pow(W, torch.tensor([2.0]).to(DEVICE)) + k4 * W + k5
 		white_scale = torch.div(denom, nom)  # = 1 / (nom / denom)
 
 		# Include white scale and exposure bias in rational polynomial coefficients
@@ -289,7 +293,7 @@ def tone_map(img, tone_mapper, exposure):
 	x2 = torch.pow(x, 2)
 	nom = k0 * x2 + k1 * x + k2
 	denom = k3 * x2 + k4 * x + k5
-	denom = torch.where(torch.isinf(denom), torch.Tensor([1.0]).cuda(), denom)  # if denom is inf, then so is nom => nan. Pixel is very bright. It becomes inf here, but 1 after clamp below
+	denom = torch.where(torch.isinf(denom), torch.Tensor([1.0]).to(DEVICE), denom)  # if denom is inf, then so is nom => nan. Pixel is very bright. It becomes inf here, but 1 after clamp below
 	y = torch.div(nom, denom)
 	return torch.clamp(y, 0.0, 1.0)
 
@@ -332,8 +336,8 @@ def compute_start_stop_exposures(reference, tone_mapper, tmax, tmin):
 		k5 = D * F * F
 
 		W = 11.2
-		nom = k0 * torch.pow(W, torch.tensor([2.0]).cuda()) + k1 * W + k2
-		denom = k3 * torch.pow(W, torch.tensor([2.0]).cuda()) + k4 * W + k5
+		nom = k0 * torch.pow(W, torch.tensor([2.0]).to(DEVICE)) + k1 * W + k2
+		denom = k3 * torch.pow(W, torch.tensor([2.0]).to(DEVICE)) + k4 * W + k5
 		white_scale = torch.div(denom, nom)  # = 1 / (nom / denom)
 
 		# Include white scale and exposure bias in rational polynomial coefficients
@@ -346,11 +350,11 @@ def compute_start_stop_exposures(reference, tone_mapper, tmax, tmin):
 
 		c0 = (k1 - k4 * tmax) / (k0 - k3 * tmax)
 		c1 = (k2 - k5 * tmax) / (k0 - k3 * tmax)
-		x_max = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).cuda() * c0) ** 2) - c1)
+		x_max = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).to(DEVICE) * c0) ** 2) - c1)
 
 		c0 = (k1 - k4 * tmin) / (k0 - k3 * tmin)
 		c1 = (k2 - k5 * tmin) / (k0 - k3 * tmin)
-		x_min = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).cuda() * c0) ** 2) - c1)
+		x_min = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).to(DEVICE) * c0) ** 2) - c1)
 	else:
 		# Source:  ACES approximation: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
 		# Include pre-exposure cancelation in constants
@@ -363,11 +367,11 @@ def compute_start_stop_exposures(reference, tone_mapper, tmax, tmin):
 
 		c0 = (k1 - k4 * tmax) / (k0 - k3 * tmax)
 		c1 = (k2 - k5 * tmax) / (k0 - k3 * tmax)
-		x_max = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).cuda() * c0) ** 2) - c1)
+		x_max = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).to(DEVICE) * c0) ** 2) - c1)
 
 		c0 = (k1 - k4 * tmin) / (k0 - k3 * tmin)
 		c1 = (k2 - k5 * tmin) / (k0 - k3 * tmin)
-		x_min = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).cuda() * c0) ** 2) - c1)
+		x_min = - 0.5 * c0 + torch.sqrt(((torch.tensor([0.5]).to(DEVICE) * c0) ** 2) - c1)
 
 	# Convert reference to luminance
 	lum_coeff_r = 0.2126
@@ -436,7 +440,7 @@ def generate_spatial_filter(pixels_per_degree, channel):
 	# Generate weights
 	g = a1 * np.sqrt(np.pi / b1) * np.exp(-np.pi**2 * z / b1) + a2 * np.sqrt(np.pi / b2) * np.exp(-np.pi**2 * z / b2)
 	g = g / np.sum(g)
-	g = torch.Tensor(g).unsqueeze(0).unsqueeze(0).cuda()
+	g = torch.Tensor(g).unsqueeze(0).unsqueeze(0).to(DEVICE)
 
 	return g, r
 
@@ -454,16 +458,16 @@ def spatial_filter(img, s_a, s_rg, s_by, radius):
 	"""
 	dim = img.size()
 	# Prepare image for convolution
-	img_pad = torch.zeros((dim[0], dim[1], dim[2] + 2 * radius, dim[3] + 2 * radius), device='cuda')
+	img_pad = torch.zeros((dim[0], dim[1], dim[2] + 2 * radius, dim[3] + 2 * radius), device=DEVICE)
 	img_pad[:, 0:1, :, :] = nn.functional.pad(img[:, 0:1, :, :], (radius, radius, radius, radius), mode='replicate')
 	img_pad[:, 1:2, :, :] = nn.functional.pad(img[:, 1:2, :, :], (radius, radius, radius, radius), mode='replicate')
 	img_pad[:, 2:3, :, :] = nn.functional.pad(img[:, 2:3, :, :], (radius, radius, radius, radius), mode='replicate')
 
 	# Apply Gaussian filters
-	img_tilde_opponent = torch.zeros((dim[0], dim[1], dim[2], dim[3]), device='cuda')
-	img_tilde_opponent[:, 0:1, :, :] = nn.functional.conv2d(img_pad[:, 0:1, :, :], s_a.cuda(), padding=0)
-	img_tilde_opponent[:, 1:2, :, :] = nn.functional.conv2d(img_pad[:, 1:2, :, :], s_rg.cuda(), padding=0)
-	img_tilde_opponent[:, 2:3, :, :] = nn.functional.conv2d(img_pad[:, 2:3, :, :], s_by.cuda(), padding=0)
+	img_tilde_opponent = torch.zeros((dim[0], dim[1], dim[2], dim[3]), device=DEVICE)
+	img_tilde_opponent[:, 0:1, :, :] = nn.functional.conv2d(img_pad[:, 0:1, :, :], s_a.to(DEVICE), padding=0)
+	img_tilde_opponent[:, 1:2, :, :] = nn.functional.conv2d(img_pad[:, 1:2, :, :], s_rg.to(DEVICE), padding=0)
+	img_tilde_opponent[:, 2:3, :, :] = nn.functional.conv2d(img_pad[:, 2:3, :, :], s_by.to(DEVICE), padding=0)
 
 	# Transform to linear RGB for clamp
 	img_tilde_linear_rgb = color_space_transform(img_tilde_opponent, 'ycxcz2linrgb')
@@ -483,7 +487,7 @@ def hunt_adjustment(img):
 	L = img[:, 0:1, :, :]
 
 	# Apply Hunt adjustment
-	img_h = torch.zeros(img.size(), device='cuda')
+	img_h = torch.zeros(img.size(), device=DEVICE)
 	img_h[:, 0:1, :, :] = L
 	img_h[:, 1:2, :, :] = torch.mul((0.01 * L), img[:, 1:2, :, :])
 	img_h[:, 2:3, :, :] = torch.mul((0.01 * L), img[:, 2:3, :, :])
@@ -519,7 +523,7 @@ def redistribute_errors(power_deltaE_hyab, cmax, pc, pt):
 	# Re-map error to 0-1 range. Values between 0 and
 	# pccmax are mapped to the range [0, pt],
 	# while the rest are mapped to the range (pt, 1]
-	deltaE_c = torch.zeros(power_deltaE_hyab.size(), device='cuda')
+	deltaE_c = torch.zeros(power_deltaE_hyab.size(), device=DEVICE)
 	pccmax = pc * cmax
 	deltaE_c = torch.where(power_deltaE_hyab < pccmax, (pt / pccmax) * power_deltaE_hyab, pt + ((power_deltaE_hyab - pccmax) / (cmax - pccmax)) * (1.0 - pt))
 
@@ -559,7 +563,7 @@ def feature_detection(img_y, pixels_per_degree, feature_type):
 	positive_weights_sum = np.sum(Gx[Gx > 0])
 	Gx = torch.Tensor(Gx)
 	Gx = torch.where(Gx < 0, Gx / negative_weights_sum, Gx / positive_weights_sum)
-	Gx = Gx.unsqueeze(0).unsqueeze(0).cuda()
+	Gx = Gx.unsqueeze(0).unsqueeze(0).to(DEVICE)
 
 	# Detect features
 	featuresX = nn.functional.conv2d(nn.functional.pad(img_y, (radius, radius, radius, radius), mode='replicate'), Gx, padding=0)
@@ -578,8 +582,8 @@ def color_space_transform(input_color, fromSpace2toSpace):
 	dim = input_color.size()
 
 	# Assume D65 standard illuminant
-	reference_illuminant = torch.tensor([[[0.950428545]], [[1.000000000]], [[1.088900371]]]).cuda()
-	inv_reference_illuminant = torch.tensor([[[1.052156925]], [[1.000000000]], [[0.918357670]]]).cuda()
+	reference_illuminant = torch.tensor([[[0.950428545]], [[1.000000000]], [[1.088900371]]]).to(DEVICE)
+	inv_reference_illuminant = torch.tensor([[[1.052156925]], [[1.000000000]], [[0.918357670]]]).to(DEVICE)
 
 	if fromSpace2toSpace == "srgb2linrgb":
 		limit = 0.04045
@@ -626,9 +630,9 @@ def color_space_transform(input_color, fromSpace2toSpace):
 						  [a21, a22, a23],
 						  [a31, a32, a33]])
 
-		input_color = input_color.view(dim[0], dim[1], dim[2]*dim[3]).cuda()  # NC(HW)
+		input_color = input_color.view(dim[0], dim[1], dim[2]*dim[3]).to(DEVICE)  # NC(HW)
 
-		transformed_color = torch.matmul(A.cuda(), input_color)
+		transformed_color = torch.matmul(A.to(DEVICE), input_color)
 		transformed_color = transformed_color.view(dim[0], dim[1], dim[2], dim[3])
 
 	elif fromSpace2toSpace == "xyz2ycxcz":

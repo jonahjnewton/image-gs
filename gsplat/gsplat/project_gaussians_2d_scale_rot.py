@@ -17,6 +17,9 @@ def project_gaussians_2d_scale_rot(
     img_width: int,
     tile_bounds: Tuple[int, int, int]
 ) -> Tuple[Tensor, Tensor, Tensor, int]:
+    if means2d.device.type == "mps":
+        from . import mps
+        return mps.project_gaussians_2d_scale_rot(means2d, scales2d, rotation, img_height, img_width, tile_bounds)
 
     return _ProjectGaussians2dScaleRot.apply(
         means2d.contiguous(),
